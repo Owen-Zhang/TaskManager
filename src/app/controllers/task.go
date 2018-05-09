@@ -9,7 +9,8 @@ import (
 	"strings"
 	"time"
 	"fmt"
-
+	"os"
+	"regexp"
 	"github.com/astaxie/beego"
 	"github.com/robfig/cron"
 )
@@ -120,43 +121,35 @@ func (this *TaskController) UploadRunFile() {
 	f, h, err := this.GetFile("files[]")
 	defer f.Close()
 
-	uploadResult := &response.ResultData{
-		IsSuccess: false,
-	}
+	uploadResult := &response.ResultData{IsSuccess: false,Msg: ""}
 
 	if err != nil {
-		uploadResult.Msg = "请选择要上传的文件"
-		this.Data["json"] = uploadResult
-		this.ServeJSON()
-		return
+		uploadResult.Msg = "请选择要上传的文件,如:demo.tar.gz"
+		this.jsonResult(uploadResult)
 
 	} else {
-		fileTool := &libs.FileTool{Url: h.Filename}
-		exts := []string{"gz"}
-		if !fileTool.CheckFileExt(exts) {
-			uploadResult.Msg = "请上传正确的文件类型"
-			this.Data["json"] = uploadResult
-			this.ServeJSON()
-			return
+		flag, _ := regexp.MatchString(`^.*\.tar\.gz$`, h.Filename)
+		if !flag {
+			uploadResult.Msg = "请上传正确的文件类型,如:demo.tar.gz"
+			this.jsonResult(uploadResult)
 		}
-
-		uuidFileName := fileTool.CreateUuidFile()
-		if uuidFileName == "" {
+				
+		fileTool := &libs.FileTool{Url: ""}
+		uuidStr := fileTool.GenerateUuidStr()
+		if uuidStr == "" {
 			uploadResult.Msg = "文件保存出错，请重新选择文件"
-			this.Data["json"] = uploadResult
-			this.ServeJSON()
-			return
+			this.jsonResult(uploadResult)
 		}
-
-		tempfolder := "Data/Temp"
-		filePath := fmt.Sprintf("%s/%s", tempfolder , uuidFileName)
-		os.MkdirAll(upload.Tempfilepath, 0777)
+		
+		uuidFileName := fmt.Sprintf("%s.tar.gz", uuidStr)
+		filePath := fmt.Sprintf("%s/%s", models.TempDir , uuidFileName)
+		os.MkdirAll(models.TempDir, 0777)
 		this.SaveToFile("files[]", filePath)
 
 		uploadResult.IsSuccess = true
 		uploadResult.Data = &response.UploadFileInfo{
-			OldFileName: fileTool.Url,
-			NewFileName: filePath,
+			OldFileName: h.Filename,
+			NewFileName: uuidFileName,
 		}
 		this.jsonResult(uploadResult)
 	}
@@ -191,26 +184,48 @@ func (this *TaskController) SaveTask() {
 	task.ApiMethod = strings.TrimSpace(this.GetString("api_method"))
 	task.PostBody = strings.TrimSpace(this.GetString("post_body"))
 	task.OldGzipFile = strings.TrimSpace(this.GetString("old_gzip_file")) 
-	task.FileFolder = strings.TrimSpace(this.GetString("file_folder"))
+	
+	task.Command = strings.TrimSpace(this.GetString("command"))
 	
 	task.Concurrent, _ = this.GetInt("concurrent")
 	task.CronSpec = strings.TrimSpace(this.GetString("cron_spec"))
 	task.Timeout, _ = this.GetInt("timeout")
 	task.Notify, _ = this.GetInt("notify")
 	task.NotifyEmail = strings.TrimSpace(this.GetString("notify_email"))
+	new_temp_file := strings.TrimSpace(this.GetString("new_temp_file"))
 
 	resultData := &response.ResultData{IsSuccess: false, Msg: ""}
 	if task.TaskName == "" || task.CronSpec == "" || task.GroupId == 0  {
-		resultData.Msg = "请填写完整信息,如下相关信息必填: 任务名称、cron表达式、调用地址、提交方式、分组"
+		resultData.Msg = "请填写完整信息,如下相关信息必填: 任务名称、cron表达式、分组"
 		this.jsonResult(resultData)
 	}
-	/*todo*/
-	/*这里要根据不同的类型去判断
-	task.ApiUrl == "" || task.ApiMethod == "" ||
-	if task.ApiMethod == "GET" {
-		task.PostBody = ""
+	
+	//0:文件，1：API, 2:Shell脚本
+	if (task.TaskType == 0 || task.TaskType == 2) && task.Command == "" {
+			resultData.Msg = "请填入相关的运行命令"
+			this.jsonResult(resultData)
 	}
-	*/
+	
+	if task.TaskType == 0 {
+		if task.OldGzipFile == "" {
+			resultData.Msg = "当选择类型为文件时,请上传要运行的文件"
+			this.jsonResult(resultData)
+		}
+	} else if task.TaskType == 1 {
+		if task.ApiUrl == "" || task.ApiMethod == "" {
+			resultData.Msg = "当选择类型为API时,如下相关信息必填: API地址、调用方法"
+			this.jsonResult(resultData)
+		}
+		if task.ApiMethod == "POST" && task.PostBody == "" {
+			resultData.Msg = "当调用方式为POST时,请填写相关的POST Body"
+			this.jsonResult(resultData)
+		}
+	} else if task.TaskType == 2{
+		
+	} else {
+			resultData.Msg = "请正确选择类型"
+			this.jsonResult(resultData)
+	}
 	
 	if _, err := cron.Parse(task.CronSpec); err != nil {
 		resultData.Msg = "cron表达式无效"
@@ -218,22 +233,31 @@ func (this *TaskController) SaveTask() {
 	}
 	
 	/*解压文件，生成文件夹*/
-	/*判断文件是否有更改,如果有更改就要解压文件*/
-	file := &libs.FileTool{Url: ""}
-	tempfile := fmt.Sprintf("%s/%s", models.TempDir, task.OldGzipFile)
-	uuidStr := file.GenerateUuidStr()
-	runDir := fmt.Sprintf("%s/%s", models.RunDir, uuidStr)
-	runShell := fmt.Sprint("%s/%s.sh", models.RunDir, uuidStr)
-	
-	if err := file.Ungzip(tempfile, runDir); err != nil {
-		file.DeleteDir(runDir)
-		resultData.Msg = "解压文件失败,文件打包是否正确"
-		this.jsonResult(resultData)
+	if new_temp_file != "" {
+		file := &libs.FileTool{Url: ""}
+		tempfile := fmt.Sprintf("%s/%s", models.TempDir, new_temp_file)
+		uuidStr := file.GenerateUuidStr()
+		runDir := fmt.Sprintf("%s/%s", models.RunDir, uuidStr)
+		runShell := fmt.Sprintf("%s/%s.sh", models.RunDir, uuidStr)
+		
+		if err := file.Ungzip(tempfile, runDir); err != nil {
+			file.DeleteDir(runDir)
+			resultData.Msg = "解压文件失败,文件打包是否正确"
+			this.jsonResult(resultData)
+		}
+		
+		//删除临时文件，生成shell文件
+		os.Remove(tempfile)
+		fileShell, errShell := os.OpenFile(runShell, os.O_RDWR|os.O_CREATE, 0766)
+		if errShell != nil {
+			beego.Info(errShell)
+			resultData.Msg = "创建shell文件时出错"
+			this.jsonResult(resultData)
+		}
+		fileShell.WriteString(fmt.Sprintf("cd %s %s", uuidStr, task.Command))
+		task.FileFolder = uuidStr
 	}
 	
-	//删除临时文件，生成shell文件
-	
-
 	//保存数据库
 	if isNew {
 		if _, err := models.TaskAdd(task); err != nil {

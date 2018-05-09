@@ -7,6 +7,7 @@ CREATE TABLE `t_task` (
 
   `file_folder` varchar(200) NOT NULL DEFAULT '' COMMENT '当任务类型为文件时,存放文件的文件夹名, 运行时也会生成相同文件名的Shell脚本',
   `old_gzip_file` varchar(200) NOT NULL DEFAULT '' COMMENT '上传gzip包名称',
+  `command` varchar(1000) NOT NULL DEFAULT '' COMMENT '命令',
   `api_header` varchar(1000) NOT NULL DEFAULT '' COMMENT '调用头(header)',
   `api_url` varchar(500) NOT NULL DEFAULT 	  '' COMMENT '调用地址(url)',
   `api_method` varchar(10) NOT NULL DEFAULT   '' COMMENT '调用Method', 

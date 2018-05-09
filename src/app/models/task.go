@@ -1,7 +1,6 @@
 package models
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/astaxie/beego/orm"
@@ -24,8 +23,9 @@ type Task struct {
 	GroupId      int
 	TaskName     string
 	TaskType     int        //0:文件，1:API, 2:Shell脚本
-	FileFolder   string     //当takstype为文件时，上传文件放置的地址
+	FileFolder   string     //当takstype为文件时，上传文件保存的文件夹名，也是shell的文件名
 	OldGzipFile  string     //用户前一次上传的文件名
+	Command      string     //运行的命令
 	ApiHeader    string     //调用接口的header 
 	ApiUrl       string     //调用的API地址
 	ApiMethod    string     //提交的Method，现只支持GET, POST
@@ -54,21 +54,6 @@ func (t *Task) Update(fields ...string) error {
 }
 
 func TaskAdd(task *Task) (int64, error) {
-	if task.TaskName == "" {
-		return 0, fmt.Errorf("TaskName字段不能为空")
-	}
-	if task.CronSpec == "" {
-		return 0, fmt.Errorf("CronSpec字段不能为空")
-	}
-	if task.ApiMethod == "" {
-		return 0, fmt.Errorf("Method方法请正常提交")
-	}
-	if task.ApiUrl == "" {
-		return 0, fmt.Errorf("Url不能为空")
-	}
-	
-	//如果header里有值，应该要判断是否为正常的格式
-	
 	if task.CreateTime == 0 {
 		task.CreateTime = time.Now().Unix()
 	}

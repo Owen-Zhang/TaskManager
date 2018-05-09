@@ -1,4 +1,85 @@
 <style>
+.upload
+{
+	margin-top:10px;
+	width:280px;
+	height:30px;
+}
+.upload .uploadbtnBox
+{
+	float:left;
+	height:30px;
+	width:70px;
+	margin-right:8px;
+}
+.upload .progress
+{
+	height:4px;
+	line-height:4px;
+	*zoom:1;
+	background:#fff;
+	float:left;
+	width:200px;
+	border:1px #ccc solid;
+	overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+
+	display:none;
+}
+.upload .filestate
+{
+	float:left;
+	height:20px;
+	text-align:left;
+	width:150px;
+	line-height:20px;
+	display:none;
+	color:#333;
+	overflow:hidden;
+}
+.upload .progresspercent
+{
+	float:right;
+	padding-top:5px;
+	height:15px;
+	text-align:right;
+	font-size:9px;
+	line-height:15px;
+	color:#333;
+}
+
+.upload .uploadbtnBox .a-upload {
+	height:28px;
+	background:#4090c0;
+	border:1px solid #dddddd;color:#ffffff;
+	line-height:28px;
+	padding:0 6px;
+	font-size:0.9em;
+	overflow: hidden;
+	display: inline-block;
+	text-decoration:none;
+	*display: inline;
+	*zoom: 1
+}
+
+.upload .uploadbtnBox .a-upload  input {
+	position: absolute;
+	width:70px;
+	height:30px;
+	overflow:hidden;
+	margin-left:-10px;
+	opacity: 0;
+	filter: alpha(opacity=0);
+	cursor: pointer
+}
+
+.upload .progress .bar
+{
+	height:4px;
+	line-height:4px;
+	background:#4090c0;
+	*zoom:1;
+}
+
 .clearfix:after {
 	content: ".";
 	display: block;
@@ -58,13 +139,13 @@
 				</div>
 				
 				<div class="control-group">											
-					<label class="control-label">是否只允许一个实例</label>
+					<label class="control-label">是否单实例</label>
 					<div class="controls concurrent">
 						<label class="radio inline ">
-							<input type="radio" value="0" name="yes"> 是
+							<input type="radio" value="0" name="yes" id="instanceyes" > 是
 						</label>
 						<label class="radio inline">
-							<input type="radio" value="1" name="no"> 否
+							<input type="radio" value="1" name="yes" id="instanceno"> 否
 						</label>
 						<i class="icon-question-sign notegreen" title="设为“是”的话，如果该任务在上一个时间点还没执行完，则略过不执行"></i>
 					</div>
@@ -82,13 +163,22 @@
 					<label class="control-label" for="task_type">任务类型</label>
 					<div class="controls">
 						<select id="task_type">
-							<option value="1">页面</option>
-							<option value="2">接口</option>
+							<option value="0">文件</option>
+							<option value="1">接口</option>
+							<option value="2">Shell脚本</option>
 						</select>
 					</div>				
 				</div>
 				
-				<div class="control-group">											
+				<div class="control-group" id="command_parent">											
+					<label class="control-label" for="command">命令脚本</label>
+					<div class="controls">
+						<input type="text" class="span6" id="command" value="{{.task.Command}}">
+						<i class="icon-question-sign notegreen" title="java -jar demo.jar demoApplication.class"></i>
+					</div>
+				</div>
+				
+				<div class="control-group" id="api_header_parent">											
 					<label class="control-label" for="api_header">头信息(header)</label>
 					<i class="icon-question-sign notegreen" title="请保持这样的格式,不要有空格:&#13;Content-Type=application/json&#13;456=sdfadsf"></i>
 					<div class="controls">
@@ -96,14 +186,14 @@
 					</div>
 				</div>
 				
-				<div class="control-group">											
+				<div class="control-group" id="api_url_parent">											
 					<label class="control-label" for="api_url">调用地址</label>
 					<div class="controls">
 						<input type="text" value="{{.task.ApiUrl}}" class="span6" id="api_url">
 					</div>				
 				</div>
 				
-				<div class="control-group">											
+				<div class="control-group" id="api_method_parent">											
 					<label class="control-label" for="api_method">提交方式</label>
 					<div class="controls">
 						<select id="api_method">
@@ -121,11 +211,22 @@
 					</div>
 				</div>
 				
-				<div class="control-group">											
-					<label class="control-label" for="cachekey">缓存Key</label>
+				<div class="control-group" id="file_parent">
+					<label style="line-height:40px" class="control-label">程序文件</label>
 					<div class="controls">
-						<input type="text"  class="span3" id="cachekey" value="{{.task.CacheKey}}">
-						<i class="icon-question-sign notegreen" title="缓存系统中用到这个值，必须唯一"></i>
+						<div class="upload clearfix">
+							<div class="uploadbtnBox clearfix">
+								<a href="javascript:;" class="a-upload">
+									<input type="file" data-url="{{urlfor "TaskController.UploadRunFile"}}" name="files[]" data-file="" id="uploadFile" onchange="CheckFile(this)" />
+									点击上传
+								</a>
+							</div>
+							<div class="filestate">文件名</div>
+							<div class="progresspercent"></div>
+							<div class="progress">
+								<div class="bar" style="width: 0%;"></div>
+							</div>
+						</div>
 					</div>
 				</div>
 				
@@ -136,6 +237,27 @@
 						<i class="icon-question-sign notegreen" title="不设置的话，默认超时时间为1天"></i>
 					</div>
 				</div>
+				
+				<div class="control-group">											
+					<label class="control-label">邮件通知</label>
+					<div class="controls notify">
+						<label class="radio inline">
+							<input type="radio" value="0" name="notify" id="nevertnotify"> 不通知
+						</label>
+						<label class="radio inline">
+							<input type="radio" value="1" name="notify" id="errornotify"> 失败时通知
+						</label>
+					</div>
+				</div>
+				
+				<div class="control-group notify_email_parent">											
+					<label class="control-label" for="notify_email">通知邮件地址</label>
+					<div class="controls">
+						<input type="text" class="span6" id="notify_email" value="{{.task.NotifyEmail}}">
+						<i class="icon-question-sign notegreen" title="如果有多个地址请以分号 ; 隔开，如果不需要抄送给其他人请留空"></i>
+					</div>
+				</div>
+				
 				<br />
 				<div class="form-actions">
 					<button id="btn-save" type="submit" class="btn btn-primary">保 存</button>
@@ -149,26 +271,75 @@
 </div>
 </div>
 
+<script src="/static/js/uploadFile/jquery.ui.widget.js"></script>
+<script src="/static/js/uploadFile/jquery.iframe-transport.js"></script>
+<script src="/static/js/uploadFile/jquery.fileupload.js"></script>
+
 <script type="text/javascript">
 $(function () {
 	$("#group_id").val({{$.task.GroupId}});
 	
-	var typeName = 'no';
-	if ({{.task.Concurrent}} == undefined || {{.task.Concurrent}} == 0)
-		typeName = 'yes';				
-	$("input:radio[name='" + typeName + "']").attr("checked",'checked');
+	if ({{.task.Concurrent}} == undefined || {{.task.Concurrent}} == 0) {
+		$("#instanceyes").attr("checked", 'checked')
+	} else {
+		$("#instanceno").attr("checked", 'checked')
+	}	
 	
 	var taskId = {{.task.Id}}
 	if (taskId > 0) {
 		$("#task_type").attr("disabled", true)
 	}
 	
-	$("#task_type").val({{.task.TaskType}})
-	$("#api_method").val({{.task.ApiMethod}})
+	if ({{.task.OldGzipFile}} && {{.task.OldGzipFile}} != "") {
+		$(".filestate").show().text({{.task.OldGzipFile}});
+		$(".progress").show();  
+		$(".bar").css("width", 200);
+	}
 	
+	var notifyValue = {{.task.Notify}};
+	if (notifyValue == undefined || notifyValue == 0) {
+		$("#nevertnotify").attr("checked",'checked')
+	} else if (notifyValue == 1) {
+		$("#errornotify").attr("checked",'checked')
+	}
+	
+	$("#task_type").val({{.task.TaskType}})	
+	$("#api_method").val({{.task.ApiMethod}})	
 	if ($("#api_method").val() == "GET") {
 		$(".postbody_div").hide()
 	}
+	
+	//初始化上传组件信息
+    $("#uploadFile").fileupload({
+        done: function (e, result) {
+            if (!result.result.IsSuccess) {
+                alert(result.result.Msg);
+            }
+
+            var resultJson = result.result.Data;
+            $(e.target).attr("data-file", resultJson.NewFileName);
+            var uploadDiv = $(e.target).parent().parent().parent();
+            uploadDiv.find(".filestate").show().text(resultJson.OldFileName);
+        },
+        progressall: function (e, data) {
+            var maxWidth = 200;
+            var percent = (data.loaded / data.total * 100).toFixed(2);
+            var progress = parseInt(data.loaded / data.total * maxWidth, 10);
+            var uploadDiv = $(e.target).parent().parent().parent();
+            uploadDiv.find(".progress").show();
+            uploadDiv.find(".bar").css("width", progress);
+            uploadDiv.find(".progresspercent").show().text(percent + "%");
+
+        }
+    });
+	
+	$("input[name='notify']").click(function () {
+		if ($(this).val() > 0) {
+			$('.notify_email_parent').removeClass('hide');
+		} else {
+			$('.notify_email_parent').addClass('hide');
+		}
+	});
 	
     //保存
     $("#btn-save").click(function () {
@@ -188,12 +359,16 @@ $(function () {
                 "concurrent": $(".concurrent input:checked").val(),
                 "cron_spec": $("#cron_spec").val(),
 				"task_type": $("#task_type").val(),
+				"old_gzip_file": $.trim($(".filestate").text()),
+				"new_temp_file": $("#uploadFile").attr("data-file") == undefined ? "" : $("#uploadFile").attr("data-file"),
+				"command": $("#command").val(),
 				"api_header": $("#api_header").val(),
 				"api_url": $("#api_url").val(),
 				"api_method": $("#api_method").val(),
 				"post_body": $("#post_body").val(),
-				"cachekey": $("#cachekey").val(),
-                "timeout": $("#timeout").val()
+                "timeout": $("#timeout").val(),
+				"notify": $(".notify input:checked").val(),
+				"notify_email": $("#notify_email").val()
 			},
             success: function (result) {
                 if (result.IsSuccess) {
@@ -216,7 +391,14 @@ $(function () {
 		});
     });
 	
+	ShowDifferentContent();
+	DisableContent();
 	
+	Task_type_click();
+	Task_Api_Method_click();
+});
+
+function Task_Api_Method_click() {
 	$("#api_method").on("change", function(){
 		if ($(this).val() == "GET") {
 			$(".postbody_div").hide()
@@ -224,15 +406,84 @@ $(function () {
 			$(".postbody_div").show()
 		}
 	});
-	
-	DisableContent();
-});
+}
+
+function Task_type_click() {
+	$("#task_type").on("change", function(){
+		var task_type = $(this).val()
+		ShowHideContent(task_type)
+	});
+}
 
 function DisableContent() {
 	if ({{.isview}} ==  1) {
 		$("#btn-save").hide();
 		$("#api_method").attr('disabled', true);
 		$("#group_id").attr('disabled', true);
+	}
+}
+
+function ApiIsShow(flag) {
+	if (flag) {
+		$("#api_header_parent").show();
+		$("#api_url_parent").show();
+		$("#api_method_parent").show();
+		$(".postbody_div").show();
+		
+		if ($("#api_method").val() == "GET") {
+		$(".postbody_div").hide()
+	}
+	}
+	else {
+		$("#api_header_parent").hide();
+		$("#api_url_parent").hide();
+		$("#api_method_parent").hide();
+		$(".postbody_div").hide();
+	}
+}
+
+function ShowDifferentContent() {
+	var task_type = $("#task_type").val();
+	ShowHideContent(task_type);
+}
+
+function ShowHideContent(task_type) {
+	if (task_type == 0) {
+		ApiIsShow(false);
+		$("#command_parent").show();
+		$("#file_parent").show();
+	} else if (task_type == 1) {
+		ApiIsShow(true);	
+		$("#command_parent").hide();
+		$("#file_parent").hide();
+	} else {
+		ApiIsShow(false);	
+		$("#command_parent").show();	
+		$("#file_parent").hide();
+	}
+}
+
+function CheckFile(obj) {
+	var array = new Array('gz');  //可以上传的文件类型
+	if (obj.value == '') {
+		alert("请上传tar.gz文件, 如demo.tar.gz");
+		return false;
+	}
+	else {
+		var fileContentType = obj.value.match(/^(.*)(\.)(.{1,8})$/)[3];
+		var isExists = false;
+		for (var i in array) {
+			if (fileContentType.toLowerCase() == array[i].toLowerCase()) {
+				isExists = true;
+				return true;
+			}
+		}
+		if (isExists == false) {
+			obj.value = null;
+			alert("请上传tar.gz文件, 如demo.tar.gz");
+			return false;
+		}
+		return false;
 	}
 }
 </script>
