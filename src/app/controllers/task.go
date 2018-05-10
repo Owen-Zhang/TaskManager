@@ -155,7 +155,7 @@ func (this *TaskController) UploadRunFile() {
 	}
 }
 
-//保存任务
+//保存任务(此处还要处理当上传过程失败,在某一个时间段里不能删除上传的文件)
 func (this *TaskController) SaveTask() {
 	id, _ := this.GetInt("id", 0)
 	isNew := true
@@ -254,7 +254,11 @@ func (this *TaskController) SaveTask() {
 			resultData.Msg = "创建shell文件时出错"
 			this.jsonResult(resultData)
 		}
-		fileShell.WriteString(fmt.Sprintf("cd %s %s", uuidStr, task.Command))
+		fileShell.WriteString(
+			fmt.Sprintf(
+			`cd %s
+		 	 %s`, 
+			fmt.Sprintf("%s/%s", models.RunDir, uuidStr), task.Command))
 		task.FileFolder = uuidStr
 	}
 	

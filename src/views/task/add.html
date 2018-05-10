@@ -180,7 +180,7 @@
 				
 				<div class="control-group" id="api_header_parent">											
 					<label class="control-label" for="api_header">头信息(header)</label>
-					<i class="icon-question-sign notegreen" title="请保持这样的格式,不要有空格:&#13;Content-Type=application/json&#13;456=sdfadsf"></i>
+					<i class="icon-question-sign notegreen" title="请保持这样的格式,不要有空格:&#13;Content-Type=application/json&#13;Content-Type=application/xml&#13;Content-Type=application/x-www-form-urlencoded&#13;456=sdfadsf"></i>
 					<div class="controls">
 						<textarea class="span6" id="api_header" rows="6">{{.task.ApiHeader}}</textarea>
 					</div>
@@ -205,7 +205,7 @@
 				
 				<div class="control-group postbody_div">											
 					<label class="control-label" for="post_body">Body内容</label>
-					<i class="icon-question-sign notegreen" title="如果在header中没有设置相关的Content-Type数据格式就默认为application/json"></i>
+					<i class="icon-question-sign notegreen" title="在header中没有设置相关的Content-Type数据格式就默认为application/json&#13;如果以form提交数据，请在header中设置，同时body内容为: aaa=111&dddd=546&sdd=243268"></i>
 					<div class="controls">
 						<textarea class="span6" id="post_body" rows="6">{{.task.PostBody}}</textarea>
 					</div>

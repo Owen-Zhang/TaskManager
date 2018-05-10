@@ -1,8 +1,8 @@
 package jobs
 
 import (
-	//"bytes"
-	//"os/exec"
+	"bytes"
+	"os/exec"
 	//"app/mail"
 	//"html/template"
 	
@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 	"net/http"
-	//"github.com/axgle/mahonia"
+	"github.com/axgle/mahonia"
 	"github.com/imroc/req"
 	"github.com/astaxie/beego"
 )
@@ -45,64 +45,92 @@ func NewCommandJob(task *models.Task) *Job {
 		name: task.TaskName,
 	}
 	job.runFunc = func(timeout time.Duration) (string, string, error, bool) {
-		header := make(http.Header)
-		if task.ApiHeader != "" && strings.TrimSpace(task.ApiHeader) != "" {
-			headers := strings.Split(task.ApiHeader, "\n")
-			for _,val := range headers {
-				keyval := strings.Split(val, "=")
-				if len(keyval) > 0 {
-					v := strings.TrimSpace(keyval[0])
-					v1 := strings.TrimSpace(keyval[1])
-					if v != "" && v1 != "" {
-						header.Set(v, v1)
-					} else {
-						continue
+		//TaskType 0:文件, 1: API, 2:Shell脚本
+		if task.TaskType == 0 {
+			bufOut := new(bytes.Buffer)
+			bufErr := new(bytes.Buffer)
+			runShell := fmt.Sprintf("%s/%s.sh", models.RunDir, task.FileFolder)
+			cmd := exec.Command("/bin/bash", "-c", runShell)
+			
+			cmd.Stdout = bufOut
+			cmd.Stderr = bufErr
+			cmd.Start()
+			err, isTimeout := runCmdWithTimeout(cmd, timeout)
+	
+			encoder := mahonia.NewDecoder("gbk")
+			return encoder.ConvertString(bufOut.String()), encoder.ConvertString(bufErr.String()), err, isTimeout
+		
+		} else if task.TaskType == 1 {
+			header := make(http.Header)
+			if task.ApiHeader != "" && strings.TrimSpace(task.ApiHeader) != "" {
+				headers := strings.Split(task.ApiHeader, "\n")
+				for _,val := range headers {
+					keyval := strings.Split(val, "=")
+					if len(keyval) > 0 {
+						v := strings.TrimSpace(keyval[0])
+						v1 := strings.TrimSpace(keyval[1])
+						if v != "" && v1 != "" {
+							header.Set(v, v1)
+						} else {
+							continue
+						}
 					}
 				}
 			}
-		}	
-		//fmt.Println(header)
-		
-		responsestr := ""
-		var err error
-		var res *req.Resp
-		
-		//这里还没有处理超时
-		if task.ApiMethod == "POST" {
-			if task.PostBody != "" {
-				contenttype := header.Get("Content-Type")			
-				//如果没有设置就用json方式提交
-				if contenttype == "" || contenttype == "application/json" {
-					res, err = req.Post(task.ApiUrl, header, req.BodyJSON(task.PostBody))
+			responsestr := ""
+			var err error
+			var res *req.Resp
+			
+			//要支持content-type:urlencode
+			req.SetTimeout(time.Second * time.Duration(task.Timeout))
+			if task.ApiMethod == "POST" {
+				if task.PostBody != "" {
+					contenttype := header.Get("Content-Type")			
+					//如果没有设置就用json方式提交
+					if contenttype == "" || contenttype == "application/json" {
+						res, err = req.Post(task.ApiUrl, header, req.BodyJSON(task.PostBody))
+					} else if contenttype == "application/xml" {
+						res, err = req.Post(task.ApiUrl, header, req.BodyXML(task.PostBody))
+					} else  {
+						// application/x-www-form-urlencoded
+						res, err = req.Post(task.ApiUrl, header, task.PostBody)
+					}
 				} else {
-					res, err = req.Post(task.ApiUrl, header, req.BodyXML(task.PostBody))
+					res, err = req.Post(task.ApiUrl, header)
 				}
+				
 			} else {
-				res, err = req.Post(task.ApiUrl, header)
+				res, err = req.Get(task.ApiUrl, header)
 			}
 			
+			if err == nil {
+				bodystr, _ := ioutil.ReadAll(res.Response().Body)
+				defer res.Response().Body.Close()
+	
+				responsestr = string(bodystr)
+				
+				if res.Response().StatusCode != 200 {
+					return responsestr, "", errors.New(fmt.Sprintf("返回的状态码为：%s", res.Response().StatusCode)), false
+				}
+				
+				return responsestr, "", nil, false
+			} else {
+				return "", "", err, false
+			}		
 		} else {
-			res, err = req.Get(task.ApiUrl, header)
-		}
-		
-		if err == nil {
-			bodystr, _ := ioutil.ReadAll(res.Response().Body)
-			defer res.Response().Body.Close()
-
-			responsestr = string(bodystr)
-			//fmt.Println(responsestr)
-			//encoder := mahonia.NewDecoder("gbk")
+			//shell 脚本 
+			bufOut := new(bytes.Buffer)
+			bufErr := new(bytes.Buffer)
+			cmd := exec.Command("/bin/bash", "-c", task.Command)
 			
-			if res.Response().StatusCode != 200 {
-				//return encoder.ConvertString(responsestr), "", errors.New(fmt.Sprintf("返回的状态码为：%s", res.Response().StatusCode)), false
-				return responsestr, "", errors.New(fmt.Sprintf("返回的状态码为：%s", res.Response().StatusCode)), false
-			}
-			
-			//return encoder.ConvertString(responsestr), "", nil, false
-			return responsestr, "", nil, false
-		} else {
-			return "", "", err, false
-		}
+			cmd.Stdout = bufOut
+			cmd.Stderr = bufErr
+			cmd.Start()
+			err, isTimeout := runCmdWithTimeout(cmd, timeout)
+	
+			encoder := mahonia.NewDecoder("gbk")
+			return encoder.ConvertString(bufOut.String()), encoder.ConvertString(bufErr.String()), err, isTimeout
+		}	
 	}
 	return job
 }
