@@ -17,11 +17,19 @@
 		
 		<hr />
 		<h4>任务命令</h4>
-		<pre>地址：{{.task.ApiUrl}}</pre>
-		<pre>调用方法：{{.task.ApiMethod}}</pre>
-		<pre>调用头信息：<br/>{{.task.ApiHeader}}</pre>
-		{{if eq .task.ApiMethod "POST"}}
-		<pre>调用Body信息：<br/>{{.task.PostBody}}</pre>
+		
+		{{if eq .task.TaskType 1}}
+			<pre>地址：{{.task.ApiUrl}}</pre>
+			<pre>调用方法：{{.task.ApiMethod}}</pre>
+			<pre>调用头信息：<br/>{{.task.ApiHeader}}</pre>
+			{{if eq .task.ApiMethod "POST"}}
+			<pre>调用Body信息：<br/>{{.task.PostBody}}</pre>
+			{{end}}
+		{{else if eq .task.TaskType 0}}
+			<pre>命令脚本：{{.task.Command}}</pre>
+			<pre>程序文件：{{.task.OldGzipFile}}</pre>
+		{{else}}
+			<pre>命令脚本：{{.task.Command}}</pre>
 		{{end}}
 		<hr />
 		

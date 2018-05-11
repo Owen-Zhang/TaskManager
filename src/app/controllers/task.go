@@ -246,8 +246,7 @@ func (this *TaskController) SaveTask() {
 			this.jsonResult(resultData)
 		}
 		
-		//删除临时文件，生成shell文件
-		os.Remove(tempfile)
+		//生成shell文件
 		fileShell, errShell := os.OpenFile(runShell, os.O_RDWR|os.O_CREATE, 0766)
 		if errShell != nil {
 			beego.Info(errShell)
@@ -256,9 +255,14 @@ func (this *TaskController) SaveTask() {
 		}
 		fileShell.WriteString(
 			fmt.Sprintf(
-			`cd %s
-		 	 %s`, 
+			`#!/bin/bash
+			cd %s
+		 	%s`, 
 			fmt.Sprintf("%s/%s", models.RunDir, uuidStr), task.Command))
+		
+		fileShell.Close()
+		os.Remove(tempfile)
+		
 		task.FileFolder = uuidStr
 	}
 	
@@ -273,7 +277,7 @@ func (this *TaskController) SaveTask() {
 			this.ajaxMsg(err.Error(), MSG_ERR)
 		}
 	}
-
+	
 	resultData.IsSuccess = true
 	this.jsonResult(resultData)
 }
@@ -391,9 +395,11 @@ func (this *TaskController) Batch() {
 				task.Update()
 			}
 		case "delete":
+			jobs.RemoveJob(id)
+			this.deleteFileAndFolder(id)
 			models.TaskDel(id)
 			models.TaskLogDelByTaskId(id)
-			jobs.RemoveJob(id)
+			
 		}
 	}
 
@@ -419,13 +425,18 @@ func (this *TaskController) Start() {
 		task.Update()
 	}
 
+	prevTimeStr := "-"
+	if task.PrevTime > 0 {
+		prevTimeStr = time.Unix(task.PrevTime, 0).Format(models.CNTimeFormat)
+	}
+	
 	startJob := jobs.GetEntryById(id)
 	this.Data["json"] = &response.ResultData{
 		IsSuccess: true,
 		Msg:       "",
 		Data: &response.JobInfo{
 			Status: 1,
-			Prev:   time.Unix(task.PrevTime, 0).Format("2006-01-02 15:04:05"),
+			Prev:   prevTimeStr,
 			Next:   beego.Date(startJob.Next, "Y-m-d H:i:s"),
 		},
 	}
@@ -450,7 +461,7 @@ func (this *TaskController) Pause() {
 		Msg:       "",
 		Data: &response.JobInfo{
 			Status: 0,
-			Prev:   time.Unix(task.PrevTime, 0).Format("2006-01-02 15:04:05"),
+			Prev:   time.Unix(task.PrevTime, 0).Format(models.CNTimeFormat),
 			Next:   "-",
 		},
 	}
@@ -470,12 +481,17 @@ func (this *TaskController) Run() {
 	startJob := jobs.GetEntryById(id)
 	task, _ := models.TaskGetById(id)
 
+	prevTimeStr := "-"
+	if task.PrevTime > 0 {
+		prevTimeStr = time.Unix(task.PrevTime, 0).Format(models.CNTimeFormat)
+	}
+	
 	this.Data["json"] = &response.ResultData{
 		IsSuccess: true,
 		Msg:       "",
 		Data: &response.JobInfo{
 			Status: 1,
-			Prev:   time.Unix(task.PrevTime, 0).Format("2006-01-02 15:04:05"),
+			Prev:   prevTimeStr,
 			Next:   beego.Date(startJob.Next, "Y-m-d H:i:s"),
 		},
 	}
@@ -486,7 +502,9 @@ func (this *TaskController) Run() {
 func (this *TaskController) Delete() {
 	id, _ := this.GetInt("id")
 	jobs.RemoveJob(id)
+	this.deleteFileAndFolder(id)
 	models.TaskDel(id)
+	models.TaskLogDelByTaskId(id)
 
 	this.Data["json"] = &response.ResultData{
 		IsSuccess: true,
@@ -494,4 +512,24 @@ func (this *TaskController) Delete() {
 		Data:      true,
 	}
 	this.ServeJSON()
+}
+
+// 当删除任务后如果TaskType为0应该要删除相关的文件夹和shell文件
+func (this *TaskController) deleteFileAndFolder(taskId int) error {
+	task, err := models.TaskGetById(taskId)
+	if err != nil {
+		return err
+	}
+	if task.TaskType == 0 {
+		taskDir := task.FileFolder
+		if taskDir == "" {
+			return nil
+		}
+		
+		dataFileDir := fmt.Sprintf("%s/%s", models.RunDir, taskDir)
+		shellFiel := fmt.Sprintf("%s.sh", dataFileDir)
+		os.Remove(shellFiel)
+		os.RemoveAll(dataFileDir)
+	}
+	return nil
 }

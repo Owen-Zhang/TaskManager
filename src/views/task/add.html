@@ -334,11 +334,7 @@ $(function () {
     });
 	
 	$("input[name='notify']").click(function () {
-		if ($(this).val() > 0) {
-			$('.notify_email_parent').removeClass('hide');
-		} else {
-			$('.notify_email_parent').addClass('hide');
-		}
+		IsShowEmailInfo($(this).val())
 	});
 	
     //保存
@@ -396,6 +392,7 @@ $(function () {
 	
 	Task_type_click();
 	Task_Api_Method_click();
+	IsShowEmailInfo({{.task.Notify}})
 });
 
 function Task_Api_Method_click() {
@@ -486,4 +483,13 @@ function CheckFile(obj) {
 		return false;
 	}
 }
+
+function IsShowEmailInfo(notify) {
+	if (notify > 0) {
+			$('.notify_email_parent').removeClass('hide');
+		} else {
+			$('.notify_email_parent').addClass('hide');
+		}
+}
+
 </script>

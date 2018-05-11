@@ -12,16 +12,21 @@ import
 	"github.com/shirou/gopsutil/process"
 	"net/smtp"
 	"strings"
+	//"os"
+	"runtime"
 )
 
-//测试
+//测试 
 func main() {
 	//testComputerMem()
 	//testComputerCpu()
 	//testComputerDisk()
 	//testComputerProcess()
 	
-	sendMail()
+	//sendMail()
+	
+	fmt.Println(runtime.GOOS)
+	
 	for {
 		
 	}
