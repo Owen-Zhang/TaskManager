@@ -238,7 +238,12 @@ func (this *TaskController) SaveTask() {
 		tempfile := fmt.Sprintf("%s/%s", models.TempDir, new_temp_file)
 		uuidStr := file.GenerateUuidStr()
 		runDir := fmt.Sprintf("%s/%s", models.RunDir, uuidStr)
-		runShell := fmt.Sprintf("%s/%s.sh", models.RunDir, uuidStr)
+		
+		shellExt := models.LinuxShellExt
+		if models.Common.SystemName == models.SystemWindows {
+			shellExt = models.WindowsShellExt
+		}
+		runShell := fmt.Sprintf("%s/%s.%s", models.RunDir, uuidStr, shellExt)
 		
 		if err := file.Ungzip(tempfile, runDir); err != nil {
 			file.DeleteDir(runDir)
@@ -252,13 +257,22 @@ func (this *TaskController) SaveTask() {
 			beego.Info(errShell)
 			resultData.Msg = "创建shell文件时出错"
 			this.jsonResult(resultData)
-		}
-		fileShell.WriteString(
-			fmt.Sprintf(
-			`#!/bin/bash
+		}		
+		
+		//生成脚本文件
+		shellContent := 
+		`#!/bin/bash
+		cd %s
+		%s`
+		if models.Common.SystemName == models.SystemWindows {
+			shellContent = 
+			`@echo off
 			cd %s
-		 	%s`, 
-			fmt.Sprintf("%s/%s", models.RunDir, uuidStr), task.Command))
+			%s`
+		}
+		
+		fileShell.WriteString(
+			fmt.Sprintf(shellContent, fmt.Sprintf("%s/%s", models.RunDir, uuidStr), task.Command))
 		
 		fileShell.Close()
 		os.Remove(tempfile)
@@ -527,7 +541,13 @@ func (this *TaskController) deleteFileAndFolder(taskId int) error {
 		}
 		
 		dataFileDir := fmt.Sprintf("%s/%s", models.RunDir, taskDir)
-		shellFiel := fmt.Sprintf("%s.sh", dataFileDir)
+		
+		shellExt := models.LinuxShellExt
+		if models.Common.SystemName == models.SystemWindows {
+			shellExt = models.WindowsShellExt
+		}
+		shellFiel := fmt.Sprintf("%s.%s", dataFileDir, shellExt)
+		
 		os.Remove(shellFiel)
 		os.RemoveAll(dataFileDir)
 	}
