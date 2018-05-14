@@ -6,6 +6,7 @@ import (
 	"app/models"
 	"strconv"
 	"strings"
+	"fmt"
 )
 
 const (
@@ -31,7 +32,7 @@ func (this *BaseController) Prepare() {
 	this.auth()
 
 	this.Data["version"] = beego.AppConfig.String("version")
-	this.Data["siteName"] = beego.AppConfig.String("site.name")
+	this.Data["siteName"] = fmt.Sprintf("%s-%s", beego.AppConfig.String("site.name"), models.Common.SystemName)
 	this.Data["curRoute"] = this.controllerName + "." + this.actionName
 	this.Data["curController"] = this.controllerName
 	this.Data["curAction"] = this.actionName

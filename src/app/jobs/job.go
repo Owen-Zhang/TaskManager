@@ -17,6 +17,9 @@ import (
 	"github.com/axgle/mahonia"
 	"github.com/imroc/req"
 	"github.com/astaxie/beego"
+	
+	"os"
+	"path/filepath"
 )
 
 type Job struct {
@@ -49,8 +52,21 @@ func NewCommandJob(task *models.Task) *Job {
 		if task.TaskType == 0 {
 			bufOut := new(bytes.Buffer)
 			bufErr := new(bytes.Buffer)
-			runShell := fmt.Sprintf("%s/%s.sh", models.RunDir, task.FileFolder)
-			cmd := exec.Command("/bin/bash", "-c", runShell)
+			
+			shellExt := models.LinuxShellExt
+			if models.Common.SystemName == models.SystemWindows {
+				shellExt = models.WindowsShellExt
+			} 			
+			runShell := fmt.Sprintf("%s/%s.%s", models.RunDir, task.FileFolder, shellExt)
+					
+			var cmd *exec.Cmd
+			if models.Common.SystemName == models.SystemLinux {
+				cmd = exec.Command("/bin/bash", "-c", runShell)
+			} else {
+				//windos下面不知怎么的，运行bat文件要绝对路径, 但bat文件中cd又可以写相对路径
+				dir,_ := filepath.Abs(filepath.Dir(os.Args[0]))
+				cmd = exec.Command("cmd.exe", "/c", fmt.Sprintf("%s/%s", dir,runShell))
+			}			
 			
 			cmd.Stdout = bufOut
 			cmd.Stderr = bufErr
@@ -87,11 +103,11 @@ func NewCommandJob(task *models.Task) *Job {
 				if task.PostBody != "" {
 					contenttype := header.Get("Content-Type")			
 					//如果没有设置就用json方式提交
-					if contenttype == "" || contenttype == "application/json" {
+					if contenttype == "application/json" {
 						res, err = req.Post(task.ApiUrl, header, req.BodyJSON(task.PostBody))
 					} else if contenttype == "application/xml" {
 						res, err = req.Post(task.ApiUrl, header, req.BodyXML(task.PostBody))
-					} else  {
+					} else  { //等于空，或者不支持的都用form方式提交
 						// application/x-www-form-urlencoded
 						res, err = req.Post(task.ApiUrl, header, task.PostBody)
 					}
@@ -121,7 +137,13 @@ func NewCommandJob(task *models.Task) *Job {
 			//shell 脚本 
 			bufOut := new(bytes.Buffer)
 			bufErr := new(bytes.Buffer)
-			cmd := exec.Command("/bin/bash", "-c", task.Command)
+			
+			var cmd *exec.Cmd
+			if models.Common.SystemName == models.SystemLinux {
+				cmd = exec.Command("/bin/bash", "-c", task.Command)
+			} else {
+				cmd = exec.Command("cmd.exe", "/c", task.Command)
+			}
 			
 			cmd.Stdout = bufOut
 			cmd.Stderr = bufErr
@@ -200,7 +222,7 @@ func (j *Job) Run() {
 		log.Error = fmt.Sprintf("任务执行超过 %d 秒\n----------------------\n%s\n", int(timeout/time.Second), cmdErr)
 	} else if err != nil {
 		log.Status = models.TASK_ERROR
-		log.Error = err.Error() + ":" + cmdErr
+		log.Error = err.Error() + ": \n" + cmdErr
 	}
 	
 	j.logId, _ = models.TaskLogAdd(log)

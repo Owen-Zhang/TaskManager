@@ -237,6 +237,9 @@ func (this *TaskController) SaveTask() {
 		file := &libs.FileTool{Url: ""}
 		tempfile := fmt.Sprintf("%s/%s", models.TempDir, new_temp_file)
 		uuidStr := file.GenerateUuidStr()
+		if task.FileFolder != "" {
+			uuidStr = task.FileFolder
+		}
 		runDir := fmt.Sprintf("%s/%s", models.RunDir, uuidStr)
 		
 		shellExt := models.LinuxShellExt
@@ -254,7 +257,6 @@ func (this *TaskController) SaveTask() {
 		//生成shell文件
 		fileShell, errShell := os.OpenFile(runShell, os.O_RDWR|os.O_CREATE, 0766)
 		if errShell != nil {
-			beego.Info(errShell)
 			resultData.Msg = "创建shell文件时出错"
 			this.jsonResult(resultData)
 		}		
@@ -263,16 +265,24 @@ func (this *TaskController) SaveTask() {
 		shellContent := 
 		`#!/bin/bash
 		cd %s
-		%s`
+		%s
+		errorcode=$?
+        if [ ${errorcode} -ne 0 ]; then
+            exit ${errorcode}
+        fi
+        exit 0`
 		if models.Common.SystemName == models.SystemWindows {
 			shellContent = 
 			`@echo off
 			cd %s
-			%s`
+			%s
+			if NOT %%errorlevel%% == 0 (
+				exit %%errorlevel%%
+			)
+			exit 0`
 		}
 		
-		fileShell.WriteString(
-			fmt.Sprintf(shellContent, fmt.Sprintf("%s/%s", models.RunDir, uuidStr), task.Command))
+		fileShell.WriteString(fmt.Sprintf(shellContent, fmt.Sprintf("%s/%s", models.RunDir, uuidStr), task.Command))
 		
 		fileShell.Close()
 		os.Remove(tempfile)
