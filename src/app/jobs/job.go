@@ -30,6 +30,7 @@ type Job struct {
 	runFunc    func(time.Duration) (string, string, error, bool) // 执行函数
 	status     int                                               // 任务状态，大于0表示正在执行中
 	Concurrent bool                                              // 同一个任务是否允许并行执行
+	RunStatus  int                                               //运行状态:0成功，1失败
 }
 
 func NewJobFromTask(task *models.Task) (*Job, error) {
@@ -126,7 +127,7 @@ func NewCommandJob(task *models.Task) *Job {
 				responsestr = string(bodystr)
 				
 				if res.Response().StatusCode != 200 {
-					return responsestr, "", errors.New(fmt.Sprintf("返回的状态码为：%s", res.Response().StatusCode)), false
+					return responsestr, "", errors.New(fmt.Sprintf("返回的状态码为：%d", res.Response().StatusCode)), false
 				}
 				
 				return responsestr, "", nil, false
@@ -192,7 +193,7 @@ func (j *Job) Run() {
 		}()
 	}
 
-	beego.Debug(fmt.Sprintf("开始执行任务: %d\n", j.id))
+	//beego.Debug(fmt.Sprintf("开始执行任务: %d\n", j.id))
 
 	j.status++
 	defer func() {
@@ -227,8 +228,15 @@ func (j *Job) Run() {
 	
 	j.logId, _ = models.TaskLogAdd(log)
 
+	runstatus := 0
+	if isTimeout || err != nil {
+		runstatus = 1
+	}
+	j.RunStatus = runstatus
+	
 	// 更新上次执行时间
 	j.task.PrevTime = t.Unix()
 	j.task.ExecuteTimes++
-	j.task.Update("PrevTime", "ExecuteTimes")
+	j.task.RunStatus = runstatus
+	j.task.Update("PrevTime", "ExecuteTimes", "RunStatus")
 }

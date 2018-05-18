@@ -2,6 +2,12 @@
 	.job-btn a {
 		margin-left : 2px;
 	}
+	.color-gree {
+		color:green
+	}
+	.color-red {
+		color:red
+	}
 </style>
 
 <div class="row">
@@ -52,7 +58,9 @@
 			<thead>
 			<tr>
 				<th width="20"><input type="checkbox" name="chkall" value="1"></td>
-				<th width="40">ID</th>
+				<!--<th width="40">ID</th>-->
+				<th width="50">任务状态</th>
+				<th width="50">运行状态</th>
 				<th>任务名称</th>
 				<th>时间表达式</th>
 				<th class="span2">上次执行时间</th>
@@ -64,7 +72,17 @@
 			{{range $k, $v := .list}}
 				<tr>
 					<td><input type="checkbox" name="ids" value="{{$v.id}}" /></td>
-					<td class="center">{{$v.id}}</td>
+					<!--<td class="center">{{$v.id}}</td>-->
+					<td class="task_status">{{if eq $v.status 0}}<span class="color-red">停用中</span>{{else}}<span class="color-gree">启用中</span>{{end}}</td>
+					<td class="run_status">
+						{{if eq $v.status 0}}
+						<span class="color-red">未运行</span>
+						{{else if eq $v.run_status 0}}
+						<span class="color-gree">成功</span>
+						{{else}}
+						<span class="color-red">失败</span>
+						{{end}}
+					</td>
 					<td>
 						<span data-toggle="tooltip" data-placement="bottom" title="{{$v.description}}">{{$v.name}}</span>
 					</td>
@@ -129,7 +147,13 @@ $(function() {
                     td.prev().html(result.Data.Next);
                     td.prev().prev().html(result.Data.Prev);
                     td.attr("status", result.Data.Status);
-
+					
+					var task_status_str = "<span class='color-gree'>启用中</span>";  //RunStatus
+					if (result.Data.Status == 0) {
+						task_status_str = "<span class='color-red'>停用中</span>";
+					}
+					td.siblings(".task_status").html(task_status_str);
+					
                     InitBtn(id);
 				}
             }
@@ -163,12 +187,23 @@ $(function() {
 				{
                     td.prev().html(result.Data.Next);
                     td.prev().prev().html(result.Data.Prev);
+
+					var run_status_str = "<span class='color-gree'>成功</span>";  
+					if (result.Data.RunStatus == 1) {
+						run_status_str = "<span class='color-red'>失败</span>";
+					}
+					td.siblings(".run_status").html(run_status_str);
 				}
             }
 		});
     });
 
     $(".btn-delete").click(function (event) {
+
+		if (!confirm("确认删除此任务")) {
+			return;
+		}
+
         if ($(this).attr("disabled") == "disabled") {
             event.preventDefault();
             return;
@@ -248,6 +283,12 @@ function batch(action) {
 	if ($("input[name='ids']:checked").size() < 1) {
 		$(".alert").text("请选择要操作的任务");
 		$(".alert").show();
+
+		if (action == "delete") {
+			if (!confirm("确认删除这些任务")) {
+				return;
+			}
+		}
 	} else {
 		var url = "{{urlfor "TaskController.Batch"}}";
 		$.post(url + "?action=" + action, $("#form-list").serialize(), function(out) {

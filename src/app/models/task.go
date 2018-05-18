@@ -34,6 +34,7 @@ type Task struct {
 	CronSpec     string
 	Concurrent   int
 	Status       int
+	RunStatus    int        //运行状态
 	Notify       int
 	NotifyEmail  string
 	Timeout      int

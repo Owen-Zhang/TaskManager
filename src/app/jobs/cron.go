@@ -58,6 +58,18 @@ func GetEntryById(id int) *cron.Entry {
 	return nil
 }
 
+func GetJobRunStatus(id int) int {
+	entries := mainCron.Entries()
+	for _, e := range entries {
+		if v, ok := e.Job.(*Job); ok {
+			if v.id == id {
+				return v.RunStatus
+			}
+		}
+	}
+	return 0
+}
+
 func GetEntries(size int) []*cron.Entry {
 	ret := mainCron.Entries()
 	if len(ret) > size {

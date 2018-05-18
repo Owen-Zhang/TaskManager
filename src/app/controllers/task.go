@@ -39,6 +39,7 @@ func (this *TaskController) List() {
 		row["name"] = v.TaskName
 		row["cron_spec"] = v.CronSpec
 		row["status"] = v.Status
+		row["run_status"] = v.RunStatus
 		row["description"] = v.Description
 
 		e := jobs.GetEntryById(v.Id)
@@ -460,6 +461,7 @@ func (this *TaskController) Start() {
 		Msg:       "",
 		Data: &response.JobInfo{
 			Status: 1,
+			RunStatus: 0,
 			Prev:   prevTimeStr,
 			Next:   beego.Date(startJob.Next, "Y-m-d H:i:s"),
 		},
@@ -485,6 +487,7 @@ func (this *TaskController) Pause() {
 		Msg:       "",
 		Data: &response.JobInfo{
 			Status: 0,
+			RunStatus: 0,
 			Prev:   time.Unix(task.PrevTime, 0).Format(models.CNTimeFormat),
 			Next:   "-",
 		},
@@ -516,6 +519,7 @@ func (this *TaskController) Run() {
 		Data: &response.JobInfo{
 			Status: 1,
 			Prev:   prevTimeStr,
+			RunStatus: jobs.GetJobRunStatus(id),
 			Next:   beego.Date(startJob.Next, "Y-m-d H:i:s"),
 		},
 	}

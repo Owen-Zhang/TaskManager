@@ -19,6 +19,7 @@ CREATE TABLE `t_task` (
   `notify` tinyint(4) NOT NULL DEFAULT '0' COMMENT '通知设置',
   `notify_email` text NOT NULL COMMENT '通知人列表',
   `status` tinyint(4) NOT NULL DEFAULT '0' COMMENT '0停用 1启用',
+  `run_status` tinyint(4) NOT NULL DEFAULT '0' COMMENT '运行状态:0成功 1失败',
   `timeout` smallint(6) NOT NULL DEFAULT '0' COMMENT '超时设置',
   `execute_times` int(11) NOT NULL DEFAULT '0' COMMENT '累计执行次数',
   `prev_time` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '上次执行时间',
