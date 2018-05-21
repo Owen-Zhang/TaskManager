@@ -193,11 +193,11 @@ func (j *Job) Run() {
 		}()
 	}
 
-	//beego.Debug(fmt.Sprintf("开始执行任务: %d\n", j.id))
-
+	beego.Info(fmt.Sprintf("任务[%d]运行之前status为: [%d]", j.id, j.status))
 	j.status++
 	defer func() {
 		j.status--
+		beego.Info(fmt.Sprintf("任务[%d]运行之后status为: [%d]", j.id, j.status))
 	}()
 
 	t := time.Now()
@@ -233,7 +233,7 @@ func (j *Job) Run() {
 		runstatus = 1
 	}
 	j.RunStatus = runstatus
-	
+
 	// 更新上次执行时间
 	j.task.PrevTime = t.Unix()
 	j.task.ExecuteTimes++
