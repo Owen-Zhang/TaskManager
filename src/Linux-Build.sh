@@ -39,4 +39,8 @@ fi
 echo "已生成了镜像tar文件在out/linux目录中"
 
 #复制配制文件
-cp -R conf out/linux/conf/
+rm -rf out/linux/conf
+cp -R conf/  out/linux/conf
+
+#删除可运行文件
+rm -rf out/linux/home
