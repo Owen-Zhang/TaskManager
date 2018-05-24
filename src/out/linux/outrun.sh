@@ -38,4 +38,9 @@ docker load -i taskmanager_${tag}.tar
 
 #删除以前版本的镜像(这个要通过 docker ps -a | grep taskmanager 得出结果去获得相应的containerId)
 
-docker run -d -p ${port}:8000 --name=taskmanager -v /opt/taskmanager/logs:/logs -v /opt/taskmanager/conf:/conf taskmanager:${tag}
+docker run -d -p ${port}:8000 --restart=always --name=taskmanager \
+  -v /opt/taskmanager/logs:/logs \
+  -v /opt/taskmanager/conf:/conf \
+  -v /opt/taskmanager/Data:/Data \
+  -v /etc/localtime:/etc/localtime \
+  taskmanager:${tag}
