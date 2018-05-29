@@ -14,7 +14,7 @@ import (
 const VERSION = "1.0.0"
 
 func main() {
-	
+
 	beego.SetLogger("file", `{"filename":"logs/log.txt"}`)
 	beego.BeeLogger.DelLogger("console")
 	beego.SetLogFuncCall(true)

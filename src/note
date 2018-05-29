@@ -1,2 +1,9 @@
 单机版本的定时调度程序
 
+1: 此程序没有使用包管理(vendor)
+2：如果修改代码后要发布请走流程
+   2.1: 修改version.txt中的版本号
+   2.2: 如果是发布linux版本就运行Linux-Build.sh文件(linux环境下，以及相应的golang环境)
+   2.3：运行后会在out/linux文件夹下面生成一个tar包文件和一个conf文件夹
+   2.4: 那个文件中一个note.txt说明
+   2.5：如果需要改镜像可以在Dockerfile文件中修改
